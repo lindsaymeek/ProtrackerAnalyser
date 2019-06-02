@@ -1,0 +1,181 @@
+# ProtrackerAnalyser
+Stereo Audio Spectrum Analyser
+for Protracker compatible modules (V2.3)
+Version 1.1a
+by Lindsay Meek
+
+
+Introduction
+-=-=-==-=-=-
+
+	This program allows you to view the audio spectrum of a music
+module as it is playing. The spectrums of the left and right channels are
+displayed in two windows on the workbench screen. These spectrum are displayed
+such that the frequencies are plotted along the Y axis, with a horizontal bar 
+is drawn indicating the relative power of each frequency.
+	Each spectrum has 128 frequency harmonics, ranging from 312 Hz to 
+20000 Hz. The spacing between each harmonic is 312 Hz. The spectrum should 
+update at the frame rate (20-15 ms), depending on what else is running at
+the time. The display process runs at a priority of -1, so it shouldn't 
+interfere with the system too much. 
+	In addition to displaying the frequency spectrum, the program can also
+generating triggering information for external hardware. These triggers appear
+on the parallel port bits PB0-PB7, and can be programmed to detect the
+presence of certain frequencies. You could wire up some LEDs, or hook it up to 
+trigger a strobe light. A simple circuit to achieve this is (excuse the
+keyboard graphics :-) )
+
+
+Parallel port
+-------------
+               --------
+Pin14 (Vcc)  --|500ohm|---a (LED) k--|
+               --------              |
+                                     |
+                     -----      |----|
+Pin2..10 (PB0-7)   --|10k|------|NPN bipolar transistor, or JFET
+                     -----      |--->|
+                                     |
+                                     |
+Pin17..23 (GND)    -------------------
+
+This draws ~6 mA of current from the power supply.
+
+Improvements in 1.1a
+-=-=-=-=-=-=-==-=-=-=-
+	The second release contains the following improvements:
+
+- The window close message can now be detected when the music has stopped
+- An occasional display corruption bug was fixed
+- The Tempo (timing) control routines in the protracker routine were improved
+- Low memory conditions are handled better
+- The parallel port control routines have been improved
+
+Installation
+-=-=-==-=-=-
+
+	This program requires ReqTools.Library (V38+) for its file requester.
+If you haven't already installed this program, you can do so by copying one
+of the following files to your libs: directory.
+
+		ks13/reqtools.library	for kickstart 1.3  machines
+		ks20/reqtools.library	for kickstart 2.0+ machines
+
+How To Use
+-=-=--=-=-
+
+	To use this program, select the module you want to play using the 
+file requester. The program will then load the module and analyse the samples.
+This will take less than 30 seconds, depending on the size of each sample and
+the speed of your CPU. The module should then be played. If not, chances are
+you don't have enough memory to hold the data required by the program. The 
+amount of memory required is approximately equal to 1.5 times the size of the 
+module.
+	To setup the triggering lines on the parallel port, you will need to
+create a text file. Each line can be programmed to trigger whenever a specific
+frequency or range of frequencies are present, or whenever a sample or
+samples are played. To trigger a line when a sample is played, use the syntax:
+
+[line] sample [sample number]
+
+eg.
+
+0 sample 3
+
+will set line PB0 to +5V when sample#3 is played.
+
+	Multiple samples can trigger the same line. For example,
+
+0 sample 3
+0 sample 4
+
+will set line PB0 to +5V when sample#3 or #4 is played.
+
+	To trigger a line to the presence of frequency range, use the syntax:
+
+[line] freq [lower freq] [upper freq] [max/ave] [#frames] <test>
+
+Where
+
+	The lower and upper frequencies specify the frequency range. These 
+values can be anywhere between 0 and 20000 Hz. The max/ave parameter specifies
+how to treat the frequency components between this range. 'Max' specifies
+that the maximum value is chosen. 'Ave' takes the average of each component.
+The resulting value is then averaged over the number of display frames 
+specified by the '#frames' parameter. 
+	The <test> describes how to trigger the line based on the resulting
+frequency value. The simplest tests check this component against a constant.
+If it is greater (or less) the line is triggered. The syntax for this is:
+
+> n 
+
+or
+
+< n
+
+eg.
+
+0 freq 10000 20000 ave 4 > 50
+
+	Will set PB0 to +5V when the average of the frequency components
+between 10000 and 20000 Hz exceed the power value 50 when averaged over 
+4 frames. The valid range of power values is 0 to 255.
+	It also possible to pulse-width modulate a line based on the 
+frequency value. The syntax for this is:
+
+pulse
+
+eg.
+
+0 freq 10000 20000 ave 4 pulse
+
+	Will pulse-width modulate PB0 based on the average of the frequency
+components between 10000 and 20000 Hz, averaged over 4 frames. The duty
+cycle for this pulse is 20ms, with a resolution of 78us.
+	For an example file, consult 'freq.spec'. Please note that adding 
+tests to the spectrum display will slow the update rate, especially when 
+the frequency  ranges are large. To inform the spectrum program that you
+wish to use the triggering, invoke the program as:
+
+	spectrum 300 [your_text_filename]
+
+eg.
+
+	spectrum 300 freq.spec
+
+	The value '300' is used by the DMAWAIT function described below.
+
+Limitations
+-=-=-=-=-=-
+
+	This version doesn't support compressed modules.
+
+	You may have to increase the DMAWAIT value for machines with faster
+processors. This can be done by specifying the value as a command line 
+arguement. eg.
+
+		spectrum 500 	;sets DMAWAIT to 500 (default 300)
+
+How It Works
+-=-=-==-=-=-
+
+	This program works by PRECOMPUTING THE SPECTRUM of each sample using a
+128-POINT FFT ALGORITHM. These spectrums are then STORED IN MEMORY. Whenever 
+the sample is triggered by the protracker play routine, the spectrum routine
+is informed. It then proceeds to DISPLAY THE SPECTRAL DATA AS THE SAMPLE PLAYS
+. The TIMING of the display routine IS CAREFULLY CONTROLLED to ensure that it
+runs in sync with the play routine. A VBLANK TIMER is used to keep things 
+running smoothly.
+
+Acknowledgments
+-=-=-=-=-=-=-=-
+
+	I would like to thank the following people:
+
+	Nico François		for ReqTools.Library
+
+	Ivar Just Olsen		for Protracker and the play routine
+	Tom Bech
+	Bjarte Andreassen
+
+Enjoy!
